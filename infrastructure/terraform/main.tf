@@ -6,9 +6,13 @@ provider "aws" {
 # Frontend için S3 bucket oluşturur - React uygulaması burada host edilecek
 resource "aws_s3_bucket" "frontend" {
   bucket = "todo-app-frontend-bucket-oktay"
-  
-  # ACL'leri devre dışı bırak
-  object_ownership = "BucketOwnerEnforced"
+}
+
+resource "aws_s3_bucket_ownership_controls" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
 }
 
 # S3 bucket'ı statik web sitesi olarak yapılandırır
