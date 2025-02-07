@@ -47,7 +47,7 @@ function App() {
             placeholder="Yeni görev ekle..."
             className="todo-input"
           />
-          <button type="submit" className="add-button">Ekle</button>
+          <button type="submit" className="add-button">Eklee</button>
         </form>
         <div className="todo-list">
           {todos.map(todo => (
