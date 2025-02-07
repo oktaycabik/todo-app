@@ -1,6 +1,6 @@
 # EC2 instance için güvenlik grubu
 resource "aws_security_group" "backend" {
-  name = "todo-app-backend-sg"
+  name = "todo-app-backend-sg-v2"
 
   # API için 3001 portunu açar
   ingress {
