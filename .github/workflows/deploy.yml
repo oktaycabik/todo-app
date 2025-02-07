@@ -28,7 +28,7 @@ jobs:
       id: terraform
       run: |
         cd infrastructure/terraform
-        terraform init -input=false
+        terraform init -reconfigure -input=false
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
         # Çıktıları dosyaya yaz
