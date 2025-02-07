@@ -35,15 +35,9 @@ jobs:
         terraform output -raw ec2_public_ip > ec2_ip.txt
         terraform output -raw private_key > private_key.pem
         
-        # Artifact olarak kaydet
+        # Environment variables tanımla
         echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
-        echo "PRIVATE_KEY_FILE=$(pwd)/private_key.pem" >> $GITHUB_ENV
-
-    - name: Upload Private Key
-      uses: actions/upload-artifact@v4
-      with:
-        name: ssh-key
-        path: infrastructure/terraform/private_key.pem
+        echo "PRIVATE_KEY_FILE=${GITHUB_WORKSPACE}/infrastructure/terraform/private_key.pem" >> $GITHUB_ENV
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
