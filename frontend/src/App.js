@@ -8,7 +8,10 @@ function App() {
   const API_URL = process.env.REACT_APP_API_URL;
 
   useEffect(() => {
-    fetchTodos();
+    const fetchData = async () => {
+      await fetchTodos();
+    };
+    fetchData();
   }, []);
 
   const fetchTodos = async () => {
