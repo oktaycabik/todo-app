@@ -31,13 +31,16 @@ jobs:
         terraform init -input=false
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
+        # jq yükleme
+        sudo apt-get install -y jq
+        
         # Debug için JSON çıktı
         terraform output -json > outputs.json
         cat outputs.json
         
         # JSON çıktıları parse etme
         EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
-        PRIVATE_KEY=$(terraform output -json | jq -r '.private_key.value')
+        PRIVATE_KEY=$(terraform output -json | jq -r '.private_key.value | @base64')
         
         echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
         echo "PRIVATE_KEY=$(echo $PRIVATE_KEY | base64 -w0)" >> $GITHUB_ENV
@@ -65,7 +68,7 @@ jobs:
     - name: Deploy Backend
       run: |
         EC2_IP=${{ env.EC2_IP }}
-        PRIVATE_KEY=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d)
+        PRIVATE_KEY=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d | sed 's/\\n/\n/g')
         
         # Private key validation
         if ! ssh-keygen -l -f <(echo "$PRIVATE_KEY") >/dev/null 2>&1; then
