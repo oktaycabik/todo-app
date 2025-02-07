@@ -1,0 +1,130 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f4d03f;
+  background: linear-gradient(132deg, #f4d03f 0%, #16a085 100%);
+  padding: 20px;
+}
+
+.todo-app {
+  background: #fff;
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1),
+              0 0 40px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 600px;
+  position: relative;
+  overflow: hidden;
+}
+
+.todo-app::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7af);
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 2.5em;
+  margin-bottom: 30px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+}
+
+.todo-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.todo-input {
+  flex: 1;
+  padding: 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: 'Courier New', Courier, monospace;
+  background: #f9f9f9;
+  transition: all 0.3s ease;
+}
+
+.todo-input:focus {
+  outline: none;
+  border-color: #4ecdc4;
+  box-shadow: 0 0 10px rgba(78, 205, 196, 0.2);
+}
+
+.add-button {
+  padding: 15px 30px;
+  background: #4ecdc4;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.add-button:hover {
+  background: #45b7af;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(78, 205, 196, 0.3);
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.todo-item {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  border-left: 5px solid #4ecdc4;
+}
+
+.todo-item:hover {
+  transform: translateX(5px);
+  background: #fff;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.todo-text {
+  font-family: 'Courier New', Courier, monospace;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.todo-date {
+  font-size: 12px;
+  color: #95a5a6;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+@media (max-width: 480px) {
+  .todo-form {
+    flex-direction: column;
+  }
+  
+  .add-button {
+    width: 100%;
+  }
+} 

@@ -1,0 +1,63 @@
+name: Deploy Todo App
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-central-1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+
+    - name: Terraform Init
+      run: |
+        cd infrastructure/terraform
+        terraform init
+
+    - name: Terraform Apply
+      id: terraform
+      run: |
+        cd infrastructure/terraform
+        terraform apply -auto-approve
+        echo "::set-output name=ec2_ip::$(terraform output -raw ec2_public_ip)"
+        echo "::set-output name=private_key::$(terraform output -raw private_key)"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    # Frontend .env oluştur
+    - name: Create Frontend env
+      run: |
+        echo "REACT_APP_API_URL=http://${{ steps.terraform.outputs.ec2_ip }}:3001" > frontend/.env
+
+    # Frontend Derleme ve Deploy
+    - name: Install Frontend Dependencies
+      run: cd frontend && npm install
+
+    - name: Build Frontend
+      run: cd frontend && npm run build
+
+    - name: Deploy to S3
+      run: aws s3 sync frontend/build/ s3://todo-app-frontend-bucket
+
+    # Backend Deploy
+    - name: Deploy Backend to EC2
+      run: |
+        echo "${{ steps.terraform.outputs.private_key }}" > private_key.pem
+        chmod 600 private_key.pem
+        scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${{ steps.terraform.outputs.ec2_ip }}:/home/ec2-user/app/
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@${{ steps.terraform.outputs.ec2_ip }} "cd /home/ec2-user/app && npm install && pm2 restart server" 
