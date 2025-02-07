@@ -31,9 +31,8 @@ jobs:
       run: |
         cd infrastructure/terraform
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
-        EC2_IP=$(terraform output -raw ec2_public_ip)
-        echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
-        echo "EC2_IP=$EC2_IP" >> $GITHUB_OUTPUT
+        echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+        echo "PRIVATE_KEY=$(terraform output -raw private_key | base64 -w0)" >> $GITHUB_ENV
 
     - name: Setup Node.js
       uses: actions/setup-node@v2
@@ -43,9 +42,7 @@ jobs:
     # Frontend .env oluştur
     - name: Create Frontend env
       run: |
-        cd infrastructure/terraform
-        EC2_IP=$(terraform output -raw ec2_public_ip)
-        echo "REACT_APP_API_URL=http://$EC2_IP:3001" > ../../frontend/.env
+        echo "REACT_APP_API_URL=http://${{ env.EC2_IP }}:3001" > frontend/.env
 
     # Frontend Derleme ve Deploy
     - name: Install Frontend Dependencies
@@ -64,10 +61,9 @@ jobs:
     # Backend Deploy
     - name: Deploy Backend to EC2
       run: |
-        cd infrastructure/terraform
-        PRIVATE_KEY=$(terraform output -raw private_key)
-        EC2_IP=$(terraform output -raw ec2_public_ip)
+        EC2_IP=${{ env.EC2_IP }}
+        PRIVATE_KEY=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d)
         echo "$PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
-        scp -i private_key.pem -o StrictHostKeyChecking=no -r ../../backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
+        scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
         ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm install && pm2 restart server" 
