@@ -5,7 +5,7 @@ provider "aws" {
 
 # Frontend için S3 bucket oluşturur - React uygulaması burada host edilecek
 resource "aws_s3_bucket" "frontend" {
-  bucket = "todo-app-frontend-bucket"
+  bucket = "todo-app-frontend-bucket-oktay"
 }
 
 # S3 bucket'ı statik web sitesi olarak yapılandırır
@@ -14,6 +14,34 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   index_document {
     suffix = "index.html"
   }
+}
+
+# S3 bucket public access ayarları
+resource "aws_s3_bucket_public_access_block" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# S3 bucket policy
+resource "aws_s3_bucket_policy" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.frontend.arn}/*"
+      },
+    ]
+  })
+  depends_on = [aws_s3_bucket_public_access_block.frontend]
 }
 
 # DynamoDB tablosu oluşturur - Todo'lar burada saklanacak
@@ -47,10 +75,20 @@ resource "local_file" "private_key" {
 
 # Backend için EC2 sunucusu oluşturur - Node.js API burada çalışacak
 resource "aws_instance" "backend" {
-  ami           = "ami-0c55b159cbfafe1f0"
+  ami           = "ami-0669b163befffbdfc"
   instance_type = "t2.micro"
   key_name      = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.backend.id]
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              yum install -y nodejs npm
+              npm install -g pm2
+              mkdir -p /home/ec2-user/app
+              chown -R ec2-user:ec2-user /home/ec2-user/app
+              EOF
+
   tags = {
     Name = "todo-app-backend"
   }
