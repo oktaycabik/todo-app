@@ -31,8 +31,8 @@ jobs:
       run: |
         cd infrastructure/terraform
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
-        echo "::set-output name=ec2_ip::$(terraform output -raw ec2_public_ip)"
-        echo "::set-output name=private_key::$(terraform output -raw private_key)"
+        echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+        echo "PRIVATE_KEY=$(terraform output -raw private_key)" >> $GITHUB_ENV
 
     - name: Setup Node.js
       uses: actions/setup-node@v2
@@ -42,7 +42,7 @@ jobs:
     # Frontend .env oluştur
     - name: Create Frontend env
       run: |
-        echo "REACT_APP_API_URL=http://${{ steps.terraform.outputs.ec2_ip }}:3001" > frontend/.env
+        echo "REACT_APP_API_URL=http://$EC2_IP:3001" > frontend/.env
 
     # Frontend Derleme ve Deploy
     - name: Install Frontend Dependencies
@@ -61,7 +61,7 @@ jobs:
     # Backend Deploy
     - name: Deploy Backend to EC2
       run: |
-        echo "${{ steps.terraform.outputs.private_key }}" > private_key.pem
+        echo "$PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
         EC2_IP=$(terraform -chdir=infrastructure/terraform output -raw ec2_public_ip)
         scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
