@@ -40,7 +40,7 @@ jobs:
         echo "PRIVATE_KEY_FILE=private_key.pem" >> $GITHUB_ENV
 
     - name: Upload Private Key
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ssh-key
         path: infrastructure/terraform/private_key.pem
