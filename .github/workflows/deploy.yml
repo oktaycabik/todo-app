@@ -33,6 +33,9 @@ jobs:
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
         echo "PRIVATE_KEY=$(terraform output -raw private_key | base64 -w0)" >> $GITHUB_ENV
+      env:
+        GITHUB_ENV: ${{ github.env_file }}
+        GITHUB_OUTPUT: ${{ github.output_file }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v2
