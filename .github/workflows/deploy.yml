@@ -31,19 +31,19 @@ jobs:
         terraform init -input=false
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
-        # jq'nun doğru kurulumu
-        sudo apt-get update && sudo apt-get install -y jq
+        # Çıktıları dosyaya yaz
+        terraform output -raw ec2_public_ip > ec2_ip.txt
+        terraform output -raw private_key > private_key.pem
         
-        # Debug için JSON çıktı
-        terraform output -json > outputs.json
-        cat outputs.json
-        
-        # JSON çıktıları parse etme
-        EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
-        PRIVATE_KEY=$(terraform output -json | jq -r '.private_key.value' | base64 -w0)
-        
-        echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
-        echo "PRIVATE_KEY=$(echo $PRIVATE_KEY | base64 -w0)" >> $GITHUB_ENV
+        # Artifact olarak kaydet
+        echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
+        echo "PRIVATE_KEY_FILE=private_key.pem" >> $GITHUB_ENV
+
+    - name: Upload Private Key
+      uses: actions/upload-artifact@v3
+      with:
+        name: ssh-key
+        path: infrastructure/terraform/private_key.pem
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -68,21 +68,8 @@ jobs:
     - name: Deploy Backend
       run: |
         EC2_IP=${{ env.EC2_IP }}
-        PRIVATE_KEY=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d | sed 's/\\n/\n/g; s/"/\"/g')
+        # Artifact'tan private key'i al
+        chmod 600 ${{ env.PRIVATE_KEY_FILE }}
         
-        # Private key validation
-        if ! ssh-keygen -l -f <(echo "$PRIVATE_KEY") >/dev/null 2>&1; then
-          echo "Invalid private key format"
-          exit 1
-        fi
-        
-        echo "$PRIVATE_KEY" > private_key.pem
-        chmod 600 private_key.pem
-        
-        # Debug connection
-        ssh-keyscan $EC2_IP >> ~/.ssh/known_hosts
-        ssh -i private_key.pem ec2-user@$EC2_IP "echo 'Connection successful'"
-        
-        # Deployment
-        scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
-        ssh -i private_key.pem ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all" 
+        scp -i ${{ env.PRIVATE_KEY_FILE }} -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
+        ssh -i ${{ env.PRIVATE_KEY_FILE }} ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all" 
