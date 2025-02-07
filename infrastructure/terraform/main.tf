@@ -33,12 +33,32 @@ resource "aws_s3_bucket_policy" "frontend" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "PublicReadGetObject"
+        Sid       = "AllowPublicRead"
         Effect    = "Allow"
         Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.frontend.arn}/*"
+        Action    = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${aws_s3_bucket.frontend.arn}",
+          "${aws_s3_bucket.frontend.arn}/*"
+        ]
       },
+      {
+        Sid       = "AllowIAMUserAccess"
+        Effect    = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.iam_user_name}"
+        }
+        Action    = "s3:*"
+        Resource = [
+          "${aws_s3_bucket.frontend.arn}",
+          "${aws_s3_bucket.frontend.arn}/*"
+        ]
+      }
     ]
   })
   depends_on = [aws_s3_bucket_public_access_block.frontend]
@@ -137,4 +157,6 @@ resource "aws_cloudfront_distribution" "frontend" {
       restriction_type = "none"
     }
   }
-} 
+}
+
+data "aws_caller_identity" "current" {} 

@@ -52,7 +52,11 @@ jobs:
       run: cd frontend && npm run build
 
     - name: Deploy to S3
-      run: aws s3 sync frontend/build/ s3://todo-app-frontend-bucket
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws configure set region eu-central-1
+        aws s3 sync frontend/build/ s3://todo-app-frontend-bucket-oktay --acl public-read
 
     # Backend Deploy
     - name: Deploy Backend to EC2
