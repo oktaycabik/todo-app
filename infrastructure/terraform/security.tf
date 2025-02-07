@@ -12,10 +12,11 @@ resource "aws_security_group" "backend" {
 
   # SSH bağlantısı için 22 portunu açar
   ingress {
+    description = "SSH Access"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.my_public_ip}/32"]
   }
 
   # Dışarı giden tüm trafiğe izin verir

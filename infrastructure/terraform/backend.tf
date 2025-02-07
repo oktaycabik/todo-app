@@ -7,8 +7,10 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "terraform-state-todo-app-oktay"
-    key    = "terraform.tfstate"
-    region = "eu-central-1"
+    bucket         = "todo-app-tf-state-oktay"
+    key            = "terraform.tfstate"
+    region         = "eu-central-1"
+    encrypt        = true
+    dynamodb_table = "terraform-lock"
   }
 } 
