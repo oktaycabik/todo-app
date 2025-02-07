@@ -64,9 +64,7 @@ jobs:
     # Backend Deploy
     - name: Deploy Backend to EC2
       run: |
-        EC2_IP=${{ env.EC2_IP }}
-        PRIVATE_KEY=$(echo "${{ env.PRIVATE_KEY }}" | base64 -d)
-        echo "$PRIVATE_KEY" > private_key.pem
+        echo "${{ env.PRIVATE_KEY }}" | base64 -d > private_key.pem
         chmod 600 private_key.pem
-        scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
-        ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm install && pm2 restart server" 
+        scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${{ env.EC2_IP }}:/home/ec2-user/app/
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@${{ env.EC2_IP }} "cd /home/ec2-user/app && npm install && pm2 restart server" 
