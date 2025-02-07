@@ -6,6 +6,9 @@ provider "aws" {
 # Frontend için S3 bucket oluşturur - React uygulaması burada host edilecek
 resource "aws_s3_bucket" "frontend" {
   bucket = "todo-app-frontend-bucket-oktay"
+  
+  # ACL'leri devre dışı bırak
+  object_ownership = "BucketOwnerEnforced"
 }
 
 # S3 bucket'ı statik web sitesi olarak yapılandırır
@@ -38,9 +41,7 @@ resource "aws_s3_bucket_policy" "frontend" {
         Principal = "*"
         Action    = [
           "s3:GetObject",
-          "s3:ListBucket",
-          "s3:PutObject",
-          "s3:DeleteObject"
+          "s3:ListBucket"
         ]
         Resource = [
           "${aws_s3_bucket.frontend.arn}",
@@ -53,7 +54,10 @@ resource "aws_s3_bucket_policy" "frontend" {
         Principal = {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.iam_user_name}"
         }
-        Action    = "s3:*"
+        Action    = [
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
         Resource = [
           "${aws_s3_bucket.frontend.arn}",
           "${aws_s3_bucket.frontend.arn}/*"
@@ -61,7 +65,6 @@ resource "aws_s3_bucket_policy" "frontend" {
       }
     ]
   })
-  depends_on = [aws_s3_bucket_public_access_block.frontend]
 }
 
 # DynamoDB tablosu
