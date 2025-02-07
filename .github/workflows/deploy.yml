@@ -37,7 +37,7 @@ jobs:
         
         # Artifact olarak kaydet
         echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
-        echo "PRIVATE_KEY_FILE=private_key.pem" >> $GITHUB_ENV
+        echo "PRIVATE_KEY_FILE=$(pwd)/private_key.pem" >> $GITHUB_ENV
 
     - name: Upload Private Key
       uses: actions/upload-artifact@v4
