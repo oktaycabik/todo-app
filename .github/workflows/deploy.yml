@@ -122,16 +122,16 @@ jobs:
     - name: Deploy Backend
       if: ${{ !env.ACT }}
       run: |
-        # EC2 IP ve private key'i terraform'dan al
+        # Terraform output'tan EC2 IP'yi al
         cd infrastructure/terraform
         EC2_IP=$(terraform output -raw ec2_public_ip)
         PRIVATE_KEY=$(terraform output -raw private_key)
+        cd ../../
         
         # Private key'i geçici dosyaya yaz
         echo "$PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
         
-        cd ../../
         if ! ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
           scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
           ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all"
