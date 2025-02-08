@@ -147,6 +147,22 @@ resource "aws_iam_instance_profile" "ec2_profile" {
   role = aws_iam_role.ec2_role.name
 }
 
+# Amazon Linux 2 AMI'yi al
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 # Backend için EC2 sunucusu oluşturur - Node.js API burada çalışacak
 resource "aws_instance" "backend" {
   ami           = data.aws_ami.amazon_linux_2.id
@@ -263,7 +279,7 @@ resource "aws_security_group" "backend" {
 
 # DynamoDB Table
 resource "aws_dynamodb_table" "todo_table" {
-  name           = "todo-items"
+  name           = "Todos"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "id"
 
