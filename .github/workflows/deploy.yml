@@ -100,10 +100,9 @@ jobs:
       run: |
         if [ ! -d frontend/build ]; then
           cd frontend
-          # package.json ve package-lock.json senkronizasyonu
-          rm -f package-lock.json
+          # Typescript versiyonunu güncelle ve bağımlılıkları yükle
+          npm install typescript@4.9.5 --save-dev
           npm install
-          npm ci
           npm run build
         else
           echo "Frontend already built, skipping..."
