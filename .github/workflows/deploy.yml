@@ -151,11 +151,15 @@ jobs:
         
         # Yeni EC2'nin başlamasını bekle
         echo "Waiting for EC2 to restart..."
-        sleep 120  # Yeni instance için daha uzun bekle
+        sleep 180  # User data script'in tamamlanması için bekle
         
         # Private key'i terraform'dan al
         terraform output -raw private_key > private_key.pem
         chmod 600 private_key.pem
+        
+        # SSH bağlantısını test et
+        echo "Testing SSH connection..."
+        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 ec2-user@$EC2_IP "echo 'SSH connection successful'"
         
         # Doğru dizine geri dön
         cd ../..
@@ -164,7 +168,9 @@ jobs:
         EC2_IP=$(cat infrastructure/terraform/ec2_ip.txt)
         
         if ! ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
+          echo "Copying backend files..."
           scp -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
+          echo "Installing dependencies and starting server..."
           ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
         else
           echo "Backend already deployed, skipping..."

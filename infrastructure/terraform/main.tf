@@ -163,7 +163,7 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Backend için EC2 sunucusu oluşturur - Node.js API burada çalışacak
+# Backend için EC2 sunucusu oluşturur
 resource "aws_instance" "backend" {
   ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t2.micro"
@@ -174,10 +174,13 @@ resource "aws_instance" "backend" {
   user_data = <<-EOF
               #!/bin/bash
               yum update -y
+              curl -sL https://rpm.nodesource.com/setup_18.x | bash -
               yum install -y nodejs npm
               npm install -g pm2
               mkdir -p /home/ec2-user/app
               chown -R ec2-user:ec2-user /home/ec2-user/app
+              chmod 700 /home/ec2-user/.ssh
+              chmod 600 /home/ec2-user/.ssh/authorized_keys
               EOF
 
   tags = {
