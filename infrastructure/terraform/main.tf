@@ -77,31 +77,6 @@ resource "aws_s3_bucket_policy" "frontend" {
   })
 }
 
-# DynamoDB tablosu
-resource "aws_dynamodb_table" "todos" {
-  name           = "Todos-v2"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "id"
-  attribute {
-    name = "id"
-    type = "S"
-  }
-}
-
-# DynamoDB tablosu
-resource "aws_dynamodb_table" "terraform-lock" {
-  name           = "terraform-lock"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "LockID"
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-  lifecycle {
-    ignore_changes = [read_capacity, write_capacity]
-  }
-}
-
 # EC2 için SSH key pair oluşturur
 resource "aws_key_pair" "deployer" {
   key_name   = "todo-app-key-v2"
