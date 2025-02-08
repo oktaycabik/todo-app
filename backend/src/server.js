@@ -5,7 +5,7 @@ const app = express();
 
 // AWS DynamoDB yapılandırması
 const dynamoDB = new AWS.DynamoDB.DocumentClient({
-  region: 'eu-central-1'
+  region: process.env.AWS_REGION || 'eu-central-1'
 });
 
 app.use(cors());

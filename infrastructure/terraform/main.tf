@@ -99,12 +99,61 @@ resource "local_file" "private_key" {
   filename = "todo-app-key.pem"
 }
 
+# IAM Role for EC2
+resource "aws_iam_role" "ec2_role" {
+  name = "todo-app-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM Policy for DynamoDB access
+resource "aws_iam_role_policy" "dynamodb_policy" {
+  name = "todo-app-dynamodb-policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Scan",
+          "dynamodb:Query"
+        ]
+        Resource = aws_dynamodb_table.todo_table.arn
+      }
+    ]
+  })
+}
+
+# Instance Profile
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "todo-app-ec2-profile"
+  role = aws_iam_role.ec2_role.name
+}
+
 # Backend için EC2 sunucusu oluşturur - Node.js API burada çalışacak
 resource "aws_instance" "backend" {
-  ami           = "ami-0669b163befffbdfc"
+  ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t2.micro"
   key_name      = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.backend.id]
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
   user_data = <<-EOF
               #!/bin/bash
@@ -209,5 +258,22 @@ resource "aws_security_group" "backend" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# DynamoDB Table
+resource "aws_dynamodb_table" "todo_table" {
+  name           = "todo-items"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "id"
+
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  tags = {
+    Name        = "todo-items"
+    Environment = var.environment
   }
 } 
