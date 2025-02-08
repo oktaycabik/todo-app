@@ -47,15 +47,17 @@ jobs:
       id: terraform
       run: |
         cd infrastructure/terraform
-        # Önce init çalıştır
         terraform init -reconfigure -input=false
-        # Tüm state'i resetle
         terraform destroy -auto-approve || true
         aws s3 rm s3://todo-app-tf-state-oktay/terraform.tfstate --region eu-central-1 || true
         aws dynamodb delete-table --table-name terraform-lock --region eu-central-1 || true
         
         # Yeni state oluştur
-        terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" -lock=false
+        MY_IP=$(curl -s ifconfig.me)
+        terraform apply -auto-approve \
+          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+          -var="my_public_ip=${MY_IP}/32" \
+          -lock=false
         
         # Çıktıları dosyaya yaz
         terraform output -raw ec2_public_ip | tr -d '\r\n' > ec2_ip.txt
