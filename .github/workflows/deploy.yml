@@ -47,6 +47,7 @@ jobs:
       id: terraform
       run: |
         cd infrastructure/terraform
+        terraform init -reconfigure -input=false
         MY_IP=$(curl -s ifconfig.me)
         terraform apply -auto-approve \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
