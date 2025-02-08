@@ -90,7 +90,10 @@ jobs:
       if: ${{ !env.ACT }}
       run: |
         if [ ! -f frontend/.env ]; then
-          echo "REACT_APP_API_URL=http://$(terraform -chdir=infrastructure/terraform output -raw ec2_public_ip):3001" > frontend/.env
+          cd infrastructure/terraform
+          EC2_IP=$(terraform output -raw ec2_public_ip)
+          cd ../../
+          echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > frontend/.env
         else
           echo "Frontend already configured, skipping..."
         fi
