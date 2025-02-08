@@ -88,6 +88,20 @@ resource "aws_dynamodb_table" "todos" {
   }
 }
 
+# DynamoDB tablosu
+resource "aws_dynamodb_table" "terraform-lock" {
+  name           = "terraform-lock"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "LockID"
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+  lifecycle {
+    ignore_changes = [read_capacity, write_capacity]
+  }
+}
+
 # EC2 için SSH key pair oluşturur
 resource "aws_key_pair" "deployer" {
   key_name   = "todo-app-key-v2"
@@ -195,5 +209,30 @@ resource "aws_security_group" "backend" {
   name = "todo-app-backend-sg-v3"
   lifecycle {
     create_before_destroy = true
+  }
+
+  # API için 3001 portunu açar
+  ingress {
+    from_port   = 3001
+    to_port     = 3001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # SSH bağlantısı için 22 portunu açar
+  ingress {
+    description = "SSH Access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["${var.my_public_ip}"]
+  }
+
+  # Dışarı giden tüm trafiğe izin verir
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 } 
