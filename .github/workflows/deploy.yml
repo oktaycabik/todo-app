@@ -144,9 +144,10 @@ jobs:
           -var="app_name=todo-app" \
           -var="environment=production"
         
-        # EC2 IP'sini terraform output'undan al ve dosyaya kaydet
-        terraform output -raw ec2_public_ip > ec2_ip.txt
-        EC2_IP=$(cat ec2_ip.txt)
+        # EC2 IP'sini terraform output'undan al
+        EC2_IP=$(terraform output -raw ec2_public_ip)
+        # IP'yi değişken olarak sakla
+        export EC2_IP
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Yeni EC2'nin başlamasını bekle
@@ -159,22 +160,18 @@ jobs:
         
         # SSH bağlantısını test et
         echo "Testing SSH connection..."
-        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 ec2-user@$EC2_IP "echo 'SSH connection successful'"
+        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=60 ec2-user@${EC2_IP} "echo 'SSH connection successful'"
         
         # Doğru dizine geri dön
         cd ../..
         
-        # EC2 IP'sini tekrar oku
-        EC2_IP=$(cat infrastructure/terraform/ec2_ip.txt)
-        
-        if ! ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
+        if ! ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
           echo "Copying backend files..."
-          scp -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
+          scp -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
           echo "Installing dependencies and starting server..."
-          ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
+          ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@${EC2_IP} "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
         else
           echo "Backend already deployed, skipping..."
         fi
         # Temizlik
-        rm -f infrastructure/terraform/private_key.pem
-        rm -f infrastructure/terraform/ec2_ip.txt 
+        rm -f infrastructure/terraform/private_key.pem 
