@@ -47,20 +47,14 @@ jobs:
       id: terraform
       run: |
         cd infrastructure/terraform
-        # Checksum temizleme
-        if aws dynamodb describe-table --table-name terraform-lock --region eu-central-1 >/dev/null 2>&1; then
-          aws dynamodb update-item \
-            --table-name terraform-lock \
-            --key '{"LockID":{"S":"todo-app-tf-state-oktay/terraform.tfstate"}}' \
-            --update-expression "REMOVE Digest" \
-            --region eu-central-1 || true
-        fi
-        # State'i yeniden oluştur
-        terraform state pull > current.tfstate
-        terraform state push current.tfstate
+        # Tüm state'i resetle
+        terraform destroy -auto-approve || true
+        aws s3 rm s3://todo-app-tf-state-oktay/terraform.tfstate --region eu-central-1 || true
+        aws dynamodb delete-table --table-name terraform-lock --region eu-central-1 || true
+        
+        # Yeni state oluştur
         terraform init -reconfigure -input=false
-        terraform force-unlock -force $(terraform state list | head -n1)
-        terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" -refresh=false
+        terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
         # Çıktıları dosyaya yaz
         terraform output -raw ec2_public_ip | tr -d '\r\n' > ec2_ip.txt
