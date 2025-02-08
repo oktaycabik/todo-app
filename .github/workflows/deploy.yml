@@ -91,7 +91,7 @@ jobs:
       run: |
         if [ ! -f frontend/.env ]; then
           cd infrastructure/terraform
-          EC2_IP=$(terraform output -raw ec2_public_ip)
+          EC2_IP=${{ env.EC2_IP }}
           cd ../../
           echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > frontend/.env
         else
