@@ -54,18 +54,28 @@ jobs:
       run: |
         cd infrastructure/terraform
         terraform init -reconfigure -input=false
+        # GitHub Actions runner IP'sini al
+        RUNNER_IP=$(curl -s ifconfig.me)
+        echo "Using GitHub Actions runner IP: ${RUNNER_IP}"
+        
         # Mevcut kaynakları kontrol et
         if ! terraform state list | grep -q "aws_instance.backend"; then
-          MY_IP=$(curl -s ifconfig.me)
           terraform apply -auto-approve \
             -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
-            -var="my_public_ip=${MY_IP}/32" \
+            -var="my_public_ip=${RUNNER_IP}/32" \
             -var="aws_region=eu-central-1" \
             -var="app_name=todo-app" \
             -var="environment=production" \
             -lock=false
         else
-          echo "Infrastructure already exists, skipping apply..."
+          # Mevcut altyapıyı güncelle (sadece security group için)
+          terraform apply -auto-approve \
+            -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+            -var="my_public_ip=${RUNNER_IP}/32" \
+            -var="aws_region=eu-central-1" \
+            -var="app_name=todo-app" \
+            -var="environment=production" \
+            -lock=false
         fi
         
         # Çıktıları dosyaya yaz
