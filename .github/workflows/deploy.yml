@@ -48,11 +48,13 @@ jobs:
       run: |
         cd infrastructure/terraform
         # Checksum temizleme
-        aws dynamodb update-item \
-          --table-name terraform-lock \
-          --key '{"LockID":{"S":"todo-app-tf-state-oktay/terraform.tfstate"}}' \
-          --update-expression "REMOVE Digest" \
-          --region eu-central-1 || true
+        if aws dynamodb describe-table --table-name terraform-lock --region eu-central-1 >/dev/null 2>&1; then
+          aws dynamodb update-item \
+            --table-name terraform-lock \
+            --key '{"LockID":{"S":"todo-app-tf-state-oktay/terraform.tfstate"}}' \
+            --update-expression "REMOVE Digest" \
+            --region eu-central-1 || true
+        fi
         # State'i yeniden oluştur
         terraform state pull > current.tfstate
         terraform state push current.tfstate
