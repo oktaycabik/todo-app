@@ -125,8 +125,10 @@ jobs:
         # GitHub Secrets'tan değerleri al
         EC2_IP=${{ secrets.EC2_IP }}
         
-        # Private key'i geçici dosyaya yaz
-        echo "${{ secrets.PRIVATE_KEY }}" > private_key.pem
+        # Private key'i terraform'dan al ve geçici dosyaya yaz
+        cd infrastructure/terraform
+        terraform output -raw private_key > private_key.pem
+        cd ../../
         chmod 600 private_key.pem
         
         # Debug için IP'yi göster (private key'i gösterme)
