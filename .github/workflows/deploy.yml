@@ -47,14 +47,17 @@ jobs:
       id: terraform
       run: |
         cd infrastructure/terraform
-        # Checksum hatası için temizlik
+        # Checksum temizleme
         aws dynamodb update-item \
           --table-name terraform-lock \
           --key '{"LockID":{"S":"todo-app-tf-state-oktay/terraform.tfstate"}}' \
           --update-expression "REMOVE Digest" \
           --region eu-central-1 || true
+        # State'i yeniden oluştur
+        terraform state pull > current.tfstate
+        terraform state push current.tfstate
         terraform init -reconfigure -input=false
-        terraform refresh -auto-approve
+        terraform force-unlock -force $(terraform state list | head -n1)
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" -refresh=false
         
         # Çıktıları dosyaya yaz
