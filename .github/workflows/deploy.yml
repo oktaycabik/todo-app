@@ -48,12 +48,13 @@ jobs:
         terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" -refresh=false
         
         # Çıktıları dosyaya yaz
-        terraform output -raw ec2_public_ip | tr -d '\r' > ec2_ip.txt
-        terraform output -raw private_key > private_key.pem
+        terraform output -raw ec2_public_ip | tr -d '\r\n' > ec2_ip.txt
+        terraform output -raw private_key | base64 -w0 > private_key.b64
         
         # Environment variables tanımla
-        echo "EC2_IP=$(cat ec2_ip.txt)" >> $GITHUB_ENV
-        echo "PRIVATE_KEY_FILE=${GITHUB_WORKSPACE}/infrastructure/terraform/private_key.pem" >> $GITHUB_ENV
+        EC2_IP=$(cat ec2_ip.txt | tr -d '"')
+        echo "EC2_IP=${EC2_IP}" >> $GITHUB_ENV
+        echo "PRIVATE_KEY_B64=$(cat private_key.b64)" >> $GITHUB_ENV
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
