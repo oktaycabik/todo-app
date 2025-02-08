@@ -145,7 +145,7 @@ jobs:
           -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
-        EC2_IP=$(terraform output -raw ec2_public_ip)
+        EC2_IP=$(terraform output -json | jq -r .ec2_public_ip.value)
         # IP'yi değişken olarak sakla
         export EC2_IP
         echo "Using EC2 IP: ${EC2_IP}"
@@ -155,12 +155,12 @@ jobs:
         sleep 180  # User data script'in tamamlanması için bekle
         
         # Private key'i terraform'dan al
-        terraform output -raw private_key > private_key.pem
+        terraform output -json | jq -r .private_key.value > private_key.pem
         chmod 600 private_key.pem
         
         # SSH bağlantısını test et
         echo "Testing SSH connection..."
-        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=60 ec2-user@${EC2_IP} "echo 'SSH connection successful'"
+        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=60 -v ec2-user@${EC2_IP} "echo 'SSH connection successful'"
         
         # Doğru dizine geri dön
         cd ../..
