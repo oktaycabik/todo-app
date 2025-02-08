@@ -21,10 +21,14 @@ jobs:
 
     - name: Create S3 Bucket
       run: |
-        aws s3api create-bucket \
-          --bucket todo-app-tf-state-oktay \
-          --region eu-central-1 \
-          --create-bucket-configuration LocationConstraint=eu-central-1
+        if ! aws s3api head-bucket --bucket todo-app-tf-state-oktay 2>/dev/null; then
+          aws s3api create-bucket \
+            --bucket todo-app-tf-state-oktay \
+            --region eu-central-1 \
+            --create-bucket-configuration LocationConstraint=eu-central-1
+        else
+          echo "S3 bucket already exists, skipping creation..."
+        fi
 
     - name: Create DynamoDB Table
       run: |
@@ -50,14 +54,19 @@ jobs:
       run: |
         cd infrastructure/terraform
         terraform init -reconfigure -input=false
-        MY_IP=$(curl -s ifconfig.me)
-        terraform apply -auto-approve \
-          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
-          -var="my_public_ip=${MY_IP}/32" \
-          -var="aws_region=eu-central-1" \
-          -var="app_name=todo-app" \
-          -var="environment=production" \
-          -lock=false
+        # Mevcut kaynakları kontrol et
+        if ! terraform state list | grep -q "aws_instance.backend"; then
+          MY_IP=$(curl -s ifconfig.me)
+          terraform apply -auto-approve \
+            -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+            -var="my_public_ip=${MY_IP}/32" \
+            -var="aws_region=eu-central-1" \
+            -var="app_name=todo-app" \
+            -var="environment=production" \
+            -lock=false
+        else
+          echo "Infrastructure already exists, skipping apply..."
+        fi
         
         # Çıktıları dosyaya yaz
         terraform output -raw ec2_public_ip | tr -d '\r\n' > ec2_ip.txt
@@ -78,26 +87,42 @@ jobs:
           backend/package-lock.json
 
     - name: Configure Frontend
-      if: ${{ !env.ACT }}  # GitHub Actions'da çalışırken atla
+      if: ${{ !env.ACT }}
       run: |
-        echo "REACT_APP_API_URL=http://$(terraform -chdir=infrastructure/terraform output -raw ec2_public_ip):3001" > frontend/.env
+        if [ ! -f frontend/.env ]; then
+          echo "REACT_APP_API_URL=http://$(terraform -chdir=infrastructure/terraform output -raw ec2_public_ip):3001" > frontend/.env
+        else
+          echo "Frontend already configured, skipping..."
+        fi
 
     - name: Build Frontend
-      if: ${{ !env.ACT }}  # GitHub Actions'da çalışırken atla
+      if: ${{ !env.ACT }}
       run: |
-        cd frontend
-        npm ci
-        npm run build
+        if [ ! -d frontend/build ]; then
+          cd frontend
+          npm ci
+          npm run build
+        else
+          echo "Frontend already built, skipping..."
+        fi
 
     - name: Deploy Frontend
-      if: ${{ !env.ACT }}  # GitHub Actions'da çalışırken atla
+      if: ${{ !env.ACT }}
       run: |
-        aws s3 sync frontend/build/ s3://todo-app-frontend-bucket-oktay --delete
+        if ! aws s3 ls s3://todo-app-frontend-bucket-oktay/index.html 2>/dev/null; then
+          aws s3 sync frontend/build/ s3://todo-app-frontend-bucket-oktay --delete
+        else
+          echo "Frontend already deployed, skipping..."
+        fi
 
     - name: Deploy Backend
-      if: ${{ !env.ACT }}  # GitHub Actions'da çalışırken atla
+      if: ${{ !env.ACT }}
       run: |
         EC2_IP=${{ env.EC2_IP }}
-        chmod 600 ${{ env.PRIVATE_KEY_FILE }}
-        scp -i ${{ env.PRIVATE_KEY_FILE }} -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
-        ssh -i ${{ env.PRIVATE_KEY_FILE }} ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all" 
+        if ! ssh -i ${{ env.PRIVATE_KEY_FILE }} -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
+          chmod 600 ${{ env.PRIVATE_KEY_FILE }}
+          scp -i ${{ env.PRIVATE_KEY_FILE }} -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
+          ssh -i ${{ env.PRIVATE_KEY_FILE }} ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all"
+        else
+          echo "Backend already deployed, skipping..."
+        fi 
