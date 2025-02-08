@@ -125,6 +125,9 @@ jobs:
         # GitHub Secrets'tan değerleri al
         EC2_IP=${{ secrets.EC2_IP }}
         
+        # Debug için security group'u kontrol et
+        aws ec2 describe-security-groups --group-name todo-app-backend-sg-v3
+        
         # Private key'i terraform'dan al ve geçici dosyaya yaz
         cd infrastructure/terraform
         terraform init -reconfigure -input=false
@@ -134,11 +137,14 @@ jobs:
         # Debug için IP'yi göster (private key'i gösterme)
         echo "Connecting to EC2 IP: $EC2_IP"
         
-        if ! ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
-          scp -i private_key.pem -o StrictHostKeyChecking=no -r ../backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
-          ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all"
+        # Doğru dizine geri dön
+        cd ../..
+        
+        if ! ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
+          scp -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
+          ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all"
         else
           echo "Backend already deployed, skipping..."
         fi
         # Temizlik
-        rm -f private_key.pem 
+        rm -f infrastructure/terraform/private_key.pem 
