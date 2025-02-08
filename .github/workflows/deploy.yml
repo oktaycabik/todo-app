@@ -135,8 +135,9 @@ jobs:
         # GitHub Secrets'tan değerleri al
         EC2_IP=${{ secrets.EC2_IP }}
         
-        # Debug için security group'u kontrol et
-        aws ec2 describe-security-groups --group-name todo-app-backend-sg-v3
+        # 30 saniye bekle - security group güncellemesi için
+        echo "Waiting for security group update..."
+        sleep 30
         
         # Private key'i terraform'dan al ve geçici dosyaya yaz
         cd infrastructure/terraform

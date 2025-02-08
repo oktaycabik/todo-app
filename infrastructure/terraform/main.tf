@@ -265,7 +265,7 @@ resource "aws_security_group" "backend" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["${var.my_public_ip}"]
+    cidr_blocks = ["${var.my_public_ip}", "0.0.0.0/0"]
   }
 
   # Dışarı giden tüm trafiğe izin verir
