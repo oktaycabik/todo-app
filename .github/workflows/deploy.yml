@@ -45,10 +45,10 @@ jobs:
       run: |
         cd infrastructure/terraform
         terraform init -reconfigure -input=false
-        terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
+        terraform apply -auto-approve -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" -refresh=false
         
         # Çıktıları dosyaya yaz
-        terraform output -raw ec2_public_ip > ec2_ip.txt
+        terraform output -raw ec2_public_ip | tr -d '\r' > ec2_ip.txt
         terraform output -raw private_key > private_key.pem
         
         # Environment variables tanımla

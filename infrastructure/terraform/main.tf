@@ -6,6 +6,10 @@ provider "aws" {
 # Frontend için S3 bucket oluşturur - React uygulaması burada host edilecek
 resource "aws_s3_bucket" "frontend" {
   bucket = "todo-app-frontend-bucket-oktay"
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [tags]
+  }
 }
 
 resource "aws_s3_bucket_ownership_controls" "frontend" {
@@ -90,6 +94,7 @@ resource "aws_key_pair" "deployer" {
   public_key = tls_private_key.pk.public_key_openssh
   lifecycle {
     create_before_destroy = true
+    prevent_destroy       = true
   }
 }
 
@@ -184,4 +189,11 @@ resource "aws_cloudfront_origin_access_control" "default" {
   signing_protocol                  = "sigv4"
 }
 
-data "aws_caller_identity" "current" {} 
+data "aws_caller_identity" "current" {}
+
+resource "aws_security_group" "backend" {
+  name = "todo-app-backend-sg-v3"
+  lifecycle {
+    create_before_destroy = true
+  }
+} 
