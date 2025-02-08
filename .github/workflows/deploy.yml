@@ -134,6 +134,9 @@ jobs:
       run: |
         # Security group'u güncelle ve EC2'yi yeniden başlat
         cd infrastructure/terraform
+        # EC2 instance'ı state'den sil
+        terraform state rm aws_instance.backend || true
+        
         terraform apply -auto-approve \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
           -var="my_public_ip=0.0.0.0/0" \
@@ -145,9 +148,9 @@ jobs:
         EC2_IP=$(terraform output -raw ec2_public_ip)
         echo "Using EC2 IP: ${EC2_IP}"
         
-        # EC2'nin yeniden başlamasını bekle
+        # Yeni EC2'nin başlamasını bekle
         echo "Waiting for EC2 to restart..."
-        sleep 60
+        sleep 120  # Yeni instance için daha uzun bekle
         
         # Private key'i terraform'dan al
         terraform output -raw private_key > private_key.pem
