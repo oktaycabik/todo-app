@@ -135,13 +135,20 @@ jobs:
         # GitHub Secrets'tan değerleri al
         EC2_IP=${{ secrets.EC2_IP }}
         
-        # 30 saniye bekle - security group güncellemesi için
-        echo "Waiting for security group update..."
-        sleep 30
-        
-        # Private key'i terraform'dan al ve geçici dosyaya yaz
+        # Security group'u güncelle ve EC2'yi yeniden başlat
         cd infrastructure/terraform
-        terraform init -reconfigure -input=false
+        terraform apply -auto-approve \
+          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+          -var="my_public_ip=0.0.0.0/0" \
+          -var="aws_region=eu-central-1" \
+          -var="app_name=todo-app" \
+          -var="environment=production"
+        
+        # EC2'nin yeniden başlamasını bekle
+        echo "Waiting for EC2 to restart..."
+        sleep 60
+        
+        # Private key'i terraform'dan al
         terraform output -raw private_key > private_key.pem
         chmod 600 private_key.pem
         
