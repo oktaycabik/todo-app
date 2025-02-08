@@ -132,9 +132,6 @@ jobs:
     - name: Deploy Backend
       if: ${{ !env.ACT }}
       run: |
-        # GitHub Secrets'tan değerleri al
-        EC2_IP=${{ secrets.EC2_IP }}
-        
         # Security group'u güncelle ve EC2'yi yeniden başlat
         cd infrastructure/terraform
         terraform apply -auto-approve \
@@ -144,6 +141,10 @@ jobs:
           -var="app_name=todo-app" \
           -var="environment=production"
         
+        # EC2 IP'sini terraform output'undan al
+        EC2_IP=$(terraform output -raw ec2_public_ip)
+        echo "Using EC2 IP: ${EC2_IP}"
+        
         # EC2'nin yeniden başlamasını bekle
         echo "Waiting for EC2 to restart..."
         sleep 60
@@ -151,9 +152,6 @@ jobs:
         # Private key'i terraform'dan al
         terraform output -raw private_key > private_key.pem
         chmod 600 private_key.pem
-        
-        # Debug için IP'yi göster (private key'i gösterme)
-        echo "Connecting to EC2 IP: $EC2_IP"
         
         # Doğru dizine geri dön
         cd ../..
