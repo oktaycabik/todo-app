@@ -152,7 +152,7 @@ jobs:
         
         if ! ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "test -d /home/ec2-user/app/node_modules"; then
           scp -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@$EC2_IP:/home/ec2-user/app/
-          ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 restart all"
+          ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@$EC2_IP "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
         else
           echo "Backend already deployed, skipping..."
         fi
