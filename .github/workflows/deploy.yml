@@ -72,12 +72,12 @@ jobs:
           -var="environment=production"
         
         # Private key'i terraform'dan al ve kaydet
-        terraform output private_key | tr -d '"' > private_key.pem
+        terraform output -no-color private_key | sed 's/^  *//;s/"//g' > private_key.pem
         chmod 600 private_key.pem
         
         # EC2 IP'sini al
         EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
-        echo "EC2_IP=${EC2_IP}" >> $GITHUB_ENV
+        echo "EC2_IP=$EC2_IP" >> "$GITHUB_ENV"
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -160,7 +160,7 @@ jobs:
         sleep 300  # 5 dakika bekle
         
         # Private key'i terraform'dan al
-        terraform output private_key | tr -d '"' > private_key.pem
+        terraform output -no-color private_key | sed 's/^  *//;s/"//g' > private_key.pem
         chmod 600 private_key.pem
         ls -la private_key.pem
         
