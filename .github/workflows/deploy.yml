@@ -75,9 +75,10 @@ jobs:
         terraform output private_key > private_key.pem
         chmod 600 private_key.pem
         
-        # EC2 IP'sini al
+        # EC2 IP'sini al ve doğrula
         EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || terraform output ec2_public_ip | awk -F' = ' '{print $2}' | tr -d '"')
-        echo "EC2_IP=$EC2_IP" >> "$GITHUB_ENV"
+        echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
+        echo "Exported EC2_IP: $EC2_IP"
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -106,8 +107,10 @@ jobs:
             echo "Error: Could not get EC2 IP"
             exit 1
           fi
+          echo "Using EC2 IP: $EC2_IP"
           
           echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > ../../frontend/.env
+          echo "Created .env file with API URL: http://${EC2_IP}:3001"
           cd ../..
         else
           echo "Frontend already configured, skipping..."
@@ -210,6 +213,13 @@ jobs:
         
         # Backend deployment
         echo "Deploying backend files..."
+        # EC2 IP'sini kontrol et
+        if [ -z "$EC2_IP" ]; then
+          echo "Error: EC2_IP is not set"
+          exit 1
+        fi
+        echo "Using EC2 IP: $EC2_IP"
+        
         if ! ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
           scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
           echo "Installing dependencies..."
