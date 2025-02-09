@@ -148,6 +148,9 @@ jobs:
         chmod 600 todo-app-key-v2
         ssh-keygen -y -f todo-app-key-v2 > todo-app-key-v2.pub
         
+        # Public key'i terraform.tfvars dosyasına yaz
+        echo "ssh_public_key = \"$(cat todo-app-key-v2.pub)\"" > terraform.tfvars
+        
         terraform init -reconfigure -input=false
         
         terraform apply -auto-approve \
@@ -155,8 +158,7 @@ jobs:
           -var="my_public_ip=0.0.0.0/0" \
           -var="aws_region=eu-central-1" \
           -var="app_name=todo-app" \
-          -var="environment=production" \
-          -var="ssh_public_key=\"$(cat todo-app-key-v2.pub)\""
+          -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
         EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
