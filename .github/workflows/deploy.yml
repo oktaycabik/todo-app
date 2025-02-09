@@ -59,10 +59,12 @@ jobs:
         
         # Terraform state'i yenile
         terraform refresh \
+          -lock=false \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
         # Terraform uygula
         terraform apply -auto-approve \
+          -lock=false \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
           -var="my_public_ip=0.0.0.0/0" \
           -var="aws_region=eu-central-1" \
@@ -95,6 +97,7 @@ jobs:
           # Terraform init
           terraform init -reconfigure -input=false
           terraform refresh \
+            -lock=false \
             -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
           # IP'yi al ve doğrula
           EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
@@ -137,9 +140,11 @@ jobs:
         
         terraform init -reconfigure -input=false
         terraform refresh \
+          -lock=false \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
         terraform apply -auto-approve \
+          -lock=false \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
           -var="my_public_ip=0.0.0.0/0" \
           -var="aws_region=eu-central-1" \
