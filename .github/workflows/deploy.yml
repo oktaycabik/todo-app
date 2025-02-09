@@ -92,19 +92,21 @@ jobs:
       if: ${{ !env.ACT }}
       run: |
         if [ ! -f frontend/.env ]; then
-          # EC2 IP'yi terraform output'tan al
           cd infrastructure/terraform
+          
           # Terraform init
           terraform init -reconfigure -input=false
           terraform refresh \
             -lock=false \
             -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
+          
           # IP'yi al ve doğrula
           EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || terraform output ec2_public_ip | awk -F' = ' '{print $2}' | tr -d '"')
           if [ -z "$EC2_IP" ]; then
             echo "Error: Could not get EC2 IP"
             exit 1
           fi
+          
           echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > ../../frontend/.env
           cd ../..
         else
@@ -138,11 +140,13 @@ jobs:
       run: |
         cd infrastructure/terraform
         
+        # Terraform init ve refresh
         terraform init -reconfigure -input=false
         terraform refresh \
           -lock=false \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
         
+        # Terraform apply
         terraform apply -auto-approve \
           -lock=false \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
@@ -151,16 +155,31 @@ jobs:
           -var="app_name=todo-app" \
           -var="environment=production"
         
-        # EC2 IP'sini terraform output'undan al
+        # EC2 IP'sini al ve doğrula
         EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || terraform output ec2_public_ip | awk -F' = ' '{print $2}' | tr -d '"')
+        if [ -z "$EC2_IP" ]; then
+          echo "Error: Could not get EC2 IP"
+          exit 1
+        fi
         echo "Using EC2 IP: ${EC2_IP}"
+        
+        # Instance ID'yi al ve doğrula
+        INSTANCE_ID=$(terraform output -raw instance_id 2>/dev/null || terraform output instance_id | awk -F' = ' '{print $2}' | tr -d '"')
+        if [ -z "$INSTANCE_ID" ]; then
+          echo "Error: Could not get Instance ID"
+          exit 1
+        fi
         
         # Yeni EC2'nin başlamasını bekle
         echo "Waiting for EC2 to restart..."
         sleep 300  # 5 dakika bekle
         
-        # Private key'i terraform'dan al
+        # Private key'i al ve doğrula
         terraform output private_key > private_key.pem
+        if [ ! -s private_key.pem ]; then
+          echo "Error: Could not get private key"
+          exit 1
+        fi
         chmod 600 private_key.pem
         ls -la private_key.pem
         
