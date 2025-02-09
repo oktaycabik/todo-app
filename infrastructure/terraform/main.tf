@@ -142,9 +142,22 @@ data "aws_ami" "amazon_linux_2" {
 }
 
 # SSH key pair oluştur
+resource "tls_private_key" "pk" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# AWS'de key pair oluştur
 resource "aws_key_pair" "deployer" {
   key_name   = "todo-app-key-v2"
-  public_key = var.ssh_public_key
+  public_key = tls_private_key.pk.public_key_openssh
+}
+
+# Private key'i output olarak al
+output "private_key" {
+  value       = tls_private_key.pk.private_key_pem
+  description = "SSH private key"
+  sensitive   = true
 }
 
 # Backend için EC2 sunucusu oluşturur

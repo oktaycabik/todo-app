@@ -50,42 +50,31 @@ jobs:
         terraform-workspace: main
 
     - name: Terraform Init & Apply
-      id: terraform
+      if: ${{ !env.ACT }}
       run: |
         cd infrastructure/terraform
+        
+        # Terraform başlat
         terraform init -reconfigure -input=false
-        # GitHub Actions runner IP'sini al
-        RUNNER_IP=$(curl -s ifconfig.me)
-        echo "Using GitHub Actions runner IP: ${RUNNER_IP}"
         
-        # Mevcut kaynakları kontrol et
-        if ! terraform state list | grep -q "aws_instance.backend"; then
-          terraform apply -auto-approve \
-            -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
-            -var="my_public_ip=${RUNNER_IP}/32" \
-            -var="aws_region=eu-central-1" \
-            -var="app_name=todo-app" \
-            -var="environment=production" \
-            -lock=false
-        else
-          # Mevcut altyapıyı güncelle (sadece security group için)
-          terraform apply -auto-approve \
-            -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
-            -var="my_public_ip=${RUNNER_IP}/32" \
-            -var="aws_region=eu-central-1" \
-            -var="app_name=todo-app" \
-            -var="environment=production" \
-            -lock=false
-        fi
+        # Terraform state'i yenile
+        terraform refresh
         
-        # Çıktıları dosyaya yaz
-        terraform output -raw ec2_public_ip | tr -d '\r\n' > ec2_ip.txt
-        terraform output -raw private_key | base64 -w0 > private_key.b64
+        # Terraform uygula
+        terraform apply -auto-approve \
+          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+          -var="my_public_ip=0.0.0.0/0" \
+          -var="aws_region=eu-central-1" \
+          -var="app_name=todo-app" \
+          -var="environment=production"
         
-        # Environment variables tanımla
-        EC2_IP=$(cat ec2_ip.txt | tr -d '"')
+        # Private key'i terraform'dan al ve kaydet
+        terraform output -raw private_key > private_key.pem
+        chmod 600 private_key.pem
+        
+        # EC2 IP'sini al
+        EC2_IP=$(terraform output -raw ec2_public_ip)
         echo "EC2_IP=${EC2_IP}" >> $GITHUB_ENV
-        echo "PRIVATE_KEY_B64=$(cat private_key.b64)" >> $GITHUB_ENV
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -143,15 +132,6 @@ jobs:
       run: |
         cd infrastructure/terraform
         
-        # Önce SSH key pair dosyalarını oluştur
-        echo "${{ secrets.EC2_SSH_KEY }}" > todo-app-key-v2
-        chmod 600 todo-app-key-v2
-        ssh-keygen -y -f todo-app-key-v2 > todo-app-key-v2.pub
-        
-        # Public key'i değişkene al
-        PUBLIC_KEY=$(cat todo-app-key-v2.pub)
-        echo "Using public key: ${PUBLIC_KEY}"
-        
         terraform init -reconfigure -input=false
         
         terraform apply -auto-approve \
@@ -159,8 +139,7 @@ jobs:
           -var="my_public_ip=0.0.0.0/0" \
           -var="aws_region=eu-central-1" \
           -var="app_name=todo-app" \
-          -var="environment=production" \
-          -var="ssh_public_key=${PUBLIC_KEY}"
+          -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
         EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
@@ -170,16 +149,17 @@ jobs:
         echo "Waiting for EC2 to restart..."
         sleep 300  # 5 dakika bekle
         
-        # SSH için todo-app-key-v2 dosyasını kullan
-        chmod 600 todo-app-key-v2
-        ls -la todo-app-key-v2
+        # Private key'i terraform'dan al
+        terraform output -raw private_key > private_key.pem
+        chmod 600 private_key.pem
+        ls -la private_key.pem
         
         # SSH bağlantısını test et (daha uzun timeout ve retry)
         for i in {1..5}; do
           echo "Attempting SSH connection (attempt $i)..."
           echo "Connecting to EC2 IP: ${EC2_IP}"
           # SSH debug modunu aktifleştir
-          if ssh -i todo-app-key-v2 -o StrictHostKeyChecking=no \
+          if ssh -i private_key.pem -o StrictHostKeyChecking=no \
                                   -o ConnectTimeout=60 \
                                   -o ServerAliveInterval=60 \
                                   -o ServerAliveCountMax=3 \
@@ -201,14 +181,14 @@ jobs:
         
         # Backend deployment
         echo "Deploying backend files..."
-        if ! ssh -i todo-app-key-v2 -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
-          scp -i todo-app-key-v2 -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
+        if ! ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
+          scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
           echo "Installing dependencies..."
-          ssh -i todo-app-key-v2 -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
         else
           echo "Backend already deployed, skipping..."
         fi
         
         # Temizlik
-        rm -f todo-app-key-v2 todo-app-key-v2.pub
+        rm -f private_key.pem
         cd ../.. 
