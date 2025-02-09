@@ -141,11 +141,17 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
+# SSH key pair oluştur
+resource "aws_key_pair" "deployer" {
+  key_name   = "todo-app-key-v2"
+  public_key = file("${path.module}/todo-app-key-v2.pub")  # Public key dosyası
+}
+
 # Backend için EC2 sunucusu oluşturur
 resource "aws_instance" "backend" {
   ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t2.micro"
-  key_name      = "todo-app-key-v2"  # AWS Console'da oluşturduğunuz key pair'in adı
+  key_name      = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 

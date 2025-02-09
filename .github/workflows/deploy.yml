@@ -142,8 +142,13 @@ jobs:
       if: ${{ !env.ACT }}
       run: |
         cd infrastructure/terraform
-        terraform init -reconfigure -input=false
         
+        # SSH key pair oluştur
+        echo "${{ secrets.EC2_SSH_KEY }}" > todo-app-key-v2
+        chmod 600 todo-app-key-v2
+        ssh-keygen -y -f todo-app-key-v2 > todo-app-key-v2.pub
+        
+        terraform init -reconfigure -input=false
         terraform apply -auto-approve \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
           -var="my_public_ip=0.0.0.0/0" \
