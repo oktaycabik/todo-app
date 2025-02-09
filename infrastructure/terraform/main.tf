@@ -141,16 +141,11 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Mevcut key pair'i data source olarak al
-data "aws_key_pair" "existing" {
-  key_name = "todo-app-key-v2"  # AWS Console'daki key pair adı
-}
-
 # Backend için EC2 sunucusu oluşturur
 resource "aws_instance" "backend" {
   ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t2.micro"
-  key_name      = data.aws_key_pair.existing.key_name
+  key_name      = "todo-app-key-v2"  # AWS Console'da oluşturduğunuz key pair'in adı
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
