@@ -101,8 +101,17 @@ jobs:
       run: |
         if [ ! -f frontend/.env ]; then
           # EC2 IP'yi terraform output'tan al
-          EC2_IP=$(cd infrastructure/terraform && terraform output -json | jq -r '.ec2_public_ip.value')
-          echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > frontend/.env
+          cd infrastructure/terraform
+          # Terraform init
+          terraform init -reconfigure -input=false
+          # IP'yi al ve doğrula
+          EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
+          if [ -z "$EC2_IP" ]; then
+            echo "Error: Could not get EC2 IP"
+            exit 1
+          fi
+          echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > ../../frontend/.env
+          cd ../..
         else
           echo "Frontend already configured, skipping..."
         fi
@@ -147,7 +156,11 @@ jobs:
           -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
-        EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
+        EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
+        if [ -z "$EC2_IP" ]; then
+          echo "Error: Could not get EC2 IP"
+          exit 1
+        fi
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Yeni EC2'nin başlamasını bekle
@@ -155,9 +168,16 @@ jobs:
         sleep 300  # 5 dakika bekle
         
         # Private key'i terraform'dan al
-        terraform output -json | jq -r '.private_key.value' > private_key.pem
+        terraform output private_key > private_key.pem
         chmod 600 private_key.pem
         ls -la private_key.pem  # Private key'in izinlerini kontrol et
+        
+        # Instance ID'yi al
+        INSTANCE_ID=$(terraform output instance_id | tr -d '"')
+        if [ -z "$INSTANCE_ID" ]; then
+          echo "Error: Could not get Instance ID"
+          exit 1
+        fi
         
         # SSH bağlantısını test et (daha uzun timeout ve retry)
         for i in {1..5}; do
