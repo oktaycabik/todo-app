@@ -152,24 +152,37 @@ jobs:
         
         # Yeni EC2'nin başlamasını bekle
         echo "Waiting for EC2 to restart..."
-        sleep 180  # User data script'in tamamlanması için bekle
+        sleep 300  # 5 dakika bekle
         
         # Private key'i terraform'dan al
         terraform output -raw private_key > private_key.pem
         chmod 600 private_key.pem
+        ls -la private_key.pem  # Private key'in izinlerini kontrol et
         
         # SSH bağlantısını test et (daha uzun timeout ve retry)
         for i in {1..5}; do
           echo "Attempting SSH connection (attempt $i)..."
-          if ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes ec2-user@${EC2_IP} "echo 'SSH connection successful'"; then
+          echo "Connecting to EC2 IP: ${EC2_IP}"
+          # SSH debug modunu aktifleştir
+          if ssh -i private_key.pem -o StrictHostKeyChecking=no \
+                                  -o ConnectTimeout=60 \
+                                  -o ServerAliveInterval=60 \
+                                  -o ServerAliveCountMax=3 \
+                                  -v \
+                                  -o BatchMode=yes \
+                                  ec2-user@${EC2_IP} "echo 'SSH connection successful'"; then
             break
           fi
           if [ $i -eq 5 ]; then
             echo "Failed to establish SSH connection after 5 attempts"
+            # Instance durumunu kontrol et
+            aws ec2 describe-instances --instance-ids $(terraform output -raw instance_id) \
+                                     --query 'Reservations[].Instances[].State.Name' \
+                                     --output text
             exit 1
           fi
           echo "Waiting before next attempt..."
-          sleep 30
+          sleep 60  # Daha uzun bekle
         done
         
         # Backend deployment

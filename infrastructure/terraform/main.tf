@@ -195,6 +195,13 @@ output "ec2_public_ip" {
   sensitive   = false
 }
 
+# EC2 instance ID'sini output olarak alma
+output "instance_id" {
+  value       = aws_instance.backend.id
+  description = "EC2 instance ID"
+  sensitive   = false
+}
+
 # Private key'i output olarak alma
 output "private_key" {
   value       = tls_private_key.pk.private_key_pem
