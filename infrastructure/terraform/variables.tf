@@ -15,11 +15,6 @@ variable "iam_user_name" {
   type        = string
 }
 
-variable "ec2_public_ip" {
-  type        = string
-  description = "EC2 instance public IP address"
-}
-
 variable "my_public_ip" {
   description = "SSH erişimi için IP adresi"
   type        = string
