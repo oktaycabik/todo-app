@@ -152,7 +152,7 @@ jobs:
           -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
-        EC2_IP=$(terraform output -raw ec2_public_ip)
+        EC2_PUBLİC_IP=$(terraform output -raw ec2_public_ip)
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Yeni EC2'nin başlamasını bekle
