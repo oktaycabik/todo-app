@@ -141,11 +141,7 @@ jobs:
     - name: Deploy Backend
       if: ${{ !env.ACT }}
       run: |
-        # Security group'u güncelle ve EC2'yi yeniden başlat
         cd infrastructure/terraform
-        
-        # Terraform state'i temizle ve yeniden başlat
-        rm -rf .terraform*
         terraform init -reconfigure -input=false
         
         terraform apply -auto-approve \
@@ -157,20 +153,16 @@ jobs:
         
         # EC2 IP'sini terraform output'undan al
         EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
-        if [ -z "$EC2_IP" ]; then
-          echo "Error: Could not get EC2 IP"
-          exit 1
-        fi
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Yeni EC2'nin başlamasını bekle
         echo "Waiting for EC2 to restart..."
         sleep 300  # 5 dakika bekle
         
-        # Private key'i terraform'dan al
-        terraform output private_key > private_key.pem
+        # Private key'i GitHub secrets'tan al
+        echo "${{ secrets.EC2_SSH_KEY }}" > private_key.pem
         chmod 600 private_key.pem
-        ls -la private_key.pem  # Private key'in izinlerini kontrol et
+        ls -la private_key.pem
         
         # Instance ID'yi al
         INSTANCE_ID=$(terraform output instance_id | tr -d '"')

@@ -77,28 +77,6 @@ resource "aws_s3_bucket_policy" "frontend" {
   })
 }
 
-# EC2 için SSH key pair oluşturur
-resource "aws_key_pair" "deployer" {
-  key_name   = "todo-app-key-v2"
-  public_key = tls_private_key.pk.public_key_openssh
-  lifecycle {
-    create_before_destroy = true
-    prevent_destroy       = true
-  }
-}
-
-# SSH key pair oluşturma
-resource "tls_private_key" "pk" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-# Private key'i local dosyaya kaydetme
-resource "local_file" "private_key" {
-  content  = tls_private_key.pk.private_key_pem
-  filename = "todo-app-key.pem"
-}
-
 # IAM Role for EC2
 resource "aws_iam_role" "ec2_role" {
   name = "todo-app-ec2-role"
@@ -167,7 +145,7 @@ data "aws_ami" "amazon_linux_2" {
 resource "aws_instance" "backend" {
   ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t2.micro"
-  key_name      = aws_key_pair.deployer.key_name
+  key_name      = "todo-app-key-v3"  # Manuel oluşturduğunuz key pair'in adı
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
@@ -200,13 +178,6 @@ output "instance_id" {
   value       = aws_instance.backend.id
   description = "EC2 instance ID"
   sensitive   = false
-}
-
-# Private key'i output olarak alma
-output "private_key" {
-  value       = tls_private_key.pk.private_key_pem
-  description = "Generated SSH private key for EC2 access"
-  sensitive   = true
 }
 
 # CloudFront dağıtımı oluşturur - Frontend için CDN hizmeti
