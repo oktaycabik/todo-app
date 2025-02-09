@@ -155,6 +155,15 @@ resource "aws_instance" "backend" {
   vpc_security_group_ids = [aws_security_group.backend.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
+  root_block_device {
+    volume_size = 8
+    volume_type = "gp2"
+  }
+
+  tags = {
+    Name = "${var.app_name}-backend-${var.environment}"
+  }
+
   user_data = <<-EOF
               #!/bin/bash
               yum update -y
@@ -166,10 +175,6 @@ resource "aws_instance" "backend" {
               chmod 700 /home/ec2-user/.ssh
               chmod 600 /home/ec2-user/.ssh/authorized_keys
               EOF
-
-  tags = {
-    Name = "todo-app-backend"
-  }
 }
 
 # EC2'nin public IP'sini output olarak alma

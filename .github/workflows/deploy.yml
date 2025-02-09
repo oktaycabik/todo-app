@@ -150,15 +150,25 @@ jobs:
         
         # Public key'i terraform.tfvars dosyasına yaz
         echo "ssh_public_key = \"$(cat todo-app-key-v2.pub)\"" > terraform.tfvars
+        cat terraform.tfvars  # Debug için içeriği göster
         
         terraform init -reconfigure -input=false
+        
+        # Plan'ı göster
+        terraform plan \
+          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+          -var="my_public_ip=0.0.0.0/0" \
+          -var="aws_region=eu-central-1" \
+          -var="app_name=todo-app" \
+          -var="environment=production"
         
         terraform apply -auto-approve \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
           -var="my_public_ip=0.0.0.0/0" \
           -var="aws_region=eu-central-1" \
           -var="app_name=todo-app" \
-          -var="environment=production"
+          -var="environment=production" \
+          -input=false
         
         # EC2 IP'sini terraform output'undan al
         EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
