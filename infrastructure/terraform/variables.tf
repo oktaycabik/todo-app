@@ -15,8 +15,13 @@ variable "iam_user_name" {
   type        = string
 }
 
+variable "ec2_public_ip" {
+  type = string
+}
+
 variable "my_public_ip" {
   description = "SSH erişimi için IP adresi"
   type        = string
   default     = "0.0.0.0/32"
 } 
+
