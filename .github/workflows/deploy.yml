@@ -148,23 +148,19 @@ jobs:
         chmod 600 todo-app-key-v2
         ssh-keygen -y -f todo-app-key-v2 > todo-app-key-v2.pub
         
-        # Public key'i terraform.tfvars dosyasına yaz
-        cat > terraform.tfvars <<EOF
-        iam_user_name = "${{ secrets.IAM_USER_NAME }}"
-        my_public_ip = "0.0.0.0/0"
-        aws_region = "eu-central-1"
-        app_name = "todo-app"
-        environment = "production"
-        ssh_public_key = "$(cat todo-app-key-v2.pub)"
-        EOF
-        
-        cat terraform.tfvars  # Debug için içeriği göster
+        # Public key'i değişkene al
+        PUBLIC_KEY=$(cat todo-app-key-v2.pub)
+        echo "Using public key: ${PUBLIC_KEY}"
         
         terraform init -reconfigure -input=false
         
-        # Terraform plan ve apply
-        terraform plan
-        terraform apply -auto-approve -input=false
+        terraform apply -auto-approve \
+          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
+          -var="my_public_ip=0.0.0.0/0" \
+          -var="aws_region=eu-central-1" \
+          -var="app_name=todo-app" \
+          -var="environment=production" \
+          -var="ssh_public_key=${PUBLIC_KEY}"
         
         # EC2 IP'sini terraform output'undan al
         EC2_IP=$(terraform output ec2_public_ip | tr -d '"')
