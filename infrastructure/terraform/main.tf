@@ -151,6 +151,9 @@ resource "tls_private_key" "pk" {
 resource "aws_key_pair" "deployer" {
   key_name   = "todo-app-key-v2"
   public_key = tls_private_key.pk.public_key_openssh
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Private key'i output olarak al
