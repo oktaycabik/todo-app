@@ -16,7 +16,8 @@ variable "iam_user_name" {
 }
 
 variable "ec2_public_ip" {
-  type = string
+  type        = string
+  description = "EC2 instance public IP address"
 }
 
 variable "my_public_ip" {
