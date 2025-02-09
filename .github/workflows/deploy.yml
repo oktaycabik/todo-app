@@ -72,11 +72,11 @@ jobs:
           -var="environment=production"
         
         # Private key'i terraform'dan al ve kaydet
-        terraform output private_key > private_key.pem
+        terraform show -json | jq -r '.values.outputs.private_key.value' > private_key.pem
         chmod 600 private_key.pem
         
         # EC2 IP'sini temiz bir şekilde al
-        EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
+        EC2_IP=$(terraform show -json | jq -r '.values.outputs.ec2_public_ip.value')
         if [ -z "$EC2_IP" ]; then
           echo "Error: Could not get EC2 IP"
           exit 1
@@ -110,7 +110,7 @@ jobs:
             -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
           
           # IP'yi al ve doğrula
-          EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
+          EC2_IP=$(terraform show -json | jq -r '.values.outputs.ec2_public_ip.value')
           if [ -z "$EC2_IP" ]; then
             echo "Error: Could not get EC2 IP"
             exit 1
@@ -167,7 +167,7 @@ jobs:
           -var="environment=production"
         
         # EC2 IP'sini al ve doğrula
-        EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || terraform output ec2_public_ip | awk -F' = ' '{print $2}' | tr -d '"')
+        EC2_IP=$(terraform show -json | jq -r '.values.outputs.ec2_public_ip.value')
         if [ -z "$EC2_IP" ]; then
           echo "Error: Could not get EC2 IP"
           exit 1
@@ -175,7 +175,7 @@ jobs:
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Instance ID'yi al ve doğrula
-        INSTANCE_ID=$(terraform output -raw instance_id 2>/dev/null || terraform output instance_id | awk -F' = ' '{print $2}' | tr -d '"')
+        INSTANCE_ID=$(terraform show -json | jq -r '.values.outputs.instance_id.value')
         if [ -z "$INSTANCE_ID" ]; then
           echo "Error: Could not get Instance ID"
           exit 1
@@ -186,7 +186,7 @@ jobs:
         sleep 300  # 5 dakika bekle
         
         # Private key'i al ve doğrula
-        terraform output private_key > private_key.pem
+        terraform show -json | jq -r '.values.outputs.private_key.value' > private_key.pem
         if [ ! -s private_key.pem ]; then
           echo "Error: Could not get private key"
           exit 1
