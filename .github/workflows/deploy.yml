@@ -75,10 +75,18 @@ jobs:
         terraform output private_key > private_key.pem
         chmod 600 private_key.pem
         
-        # EC2 IP'sini al ve doğrula
-        EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || terraform output ec2_public_ip | awk -F' = ' '{print $2}' | tr -d '"')
-        echo "EC2_IP=$EC2_IP" >> $GITHUB_ENV
-        echo "Exported EC2_IP: $EC2_IP"
+        # EC2 IP'sini temiz bir şekilde al
+        EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
+        if [ -z "$EC2_IP" ]; then
+          echo "Error: Could not get EC2 IP"
+          exit 1
+        fi
+        # Environment variable'ı ayarla
+        {
+          echo "EC2_IP=$EC2_IP"
+          echo "EC2_IP_SET=true"
+        } >> $GITHUB_ENV
+        echo "Set EC2_IP to: $EC2_IP"
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -102,7 +110,7 @@ jobs:
             -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
           
           # IP'yi al ve doğrula
-          EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || terraform output ec2_public_ip | awk -F' = ' '{print $2}' | tr -d '"')
+          EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
           if [ -z "$EC2_IP" ]; then
             echo "Error: Could not get EC2 IP"
             exit 1
@@ -214,7 +222,7 @@ jobs:
         # Backend deployment
         echo "Deploying backend files..."
         # EC2 IP'sini kontrol et
-        if [ -z "$EC2_IP" ]; then
+        if [ "${EC2_IP_SET}" != "true" ]; then
           echo "Error: EC2_IP is not set"
           exit 1
         fi
