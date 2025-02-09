@@ -144,7 +144,7 @@ data "aws_ami" "amazon_linux_2" {
 # SSH key pair oluştur
 resource "aws_key_pair" "deployer" {
   key_name   = "todo-app-key-v2"
-  public_key = file("${path.module}/todo-app-key-v2.pub")  # Public key dosyası
+  public_key = var.ssh_public_key
 }
 
 # Backend için EC2 sunucusu oluşturur
