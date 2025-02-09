@@ -134,8 +134,10 @@ jobs:
       run: |
         # Security group'u güncelle ve EC2'yi yeniden başlat
         cd infrastructure/terraform
-        # EC2 instance'ı state'den sil
-        terraform state rm aws_instance.backend || true
+        
+        # Terraform state'i temizle ve yeniden başlat
+        rm -rf .terraform*
+        terraform init -reconfigure -input=false
         
         terraform apply -auto-approve \
           -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
@@ -145,9 +147,7 @@ jobs:
           -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
-        EC2_IP=$(terraform output -json | jq -r .ec2_public_ip.value)
-        # IP'yi değişken olarak sakla
-        export EC2_IP
+        EC2_IP=$(terraform output -raw ec2_public_ip)
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Yeni EC2'nin başlamasını bekle
@@ -155,23 +155,33 @@ jobs:
         sleep 180  # User data script'in tamamlanması için bekle
         
         # Private key'i terraform'dan al
-        terraform output -json | jq -r .private_key.value > private_key.pem
+        terraform output -raw private_key > private_key.pem
         chmod 600 private_key.pem
         
-        # SSH bağlantısını test et
-        echo "Testing SSH connection..."
-        ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=60 -v ec2-user@${EC2_IP} "echo 'SSH connection successful'"
+        # SSH bağlantısını test et (daha uzun timeout ve retry)
+        for i in {1..5}; do
+          echo "Attempting SSH connection (attempt $i)..."
+          if ssh -i private_key.pem -o StrictHostKeyChecking=no -o ConnectTimeout=30 -o BatchMode=yes ec2-user@${EC2_IP} "echo 'SSH connection successful'"; then
+            break
+          fi
+          if [ $i -eq 5 ]; then
+            echo "Failed to establish SSH connection after 5 attempts"
+            exit 1
+          fi
+          echo "Waiting before next attempt..."
+          sleep 30
+        done
         
-        # Doğru dizine geri dön
-        cd ../..
-        
-        if ! ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
-          echo "Copying backend files..."
-          scp -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
-          echo "Installing dependencies and starting server..."
-          ssh -i infrastructure/terraform/private_key.pem -o StrictHostKeyChecking=no ec2-user@${EC2_IP} "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
+        # Backend deployment
+        echo "Deploying backend files..."
+        if ! ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
+          scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
+          echo "Installing dependencies..."
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
         else
           echo "Backend already deployed, skipping..."
         fi
+        
         # Temizlik
-        rm -f infrastructure/terraform/private_key.pem 
+        rm -f private_key.pem
+        cd ../.. 
