@@ -101,7 +101,7 @@ jobs:
       run: |
         if [ ! -f frontend/.env ]; then
           # EC2 IP'yi terraform output'tan al
-          EC2_IP=$(cd infrastructure/terraform && terraform output -raw ec2_public_ip)
+          EC2_IP=$(cd infrastructure/terraform && terraform output -json | jq -r '.ec2_public_ip.value')
           echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > frontend/.env
         else
           echo "Frontend already configured, skipping..."
@@ -147,7 +147,7 @@ jobs:
           -var="environment=production"
         
         # EC2 IP'sini terraform output'undan al
-        EC2_IP=$(terraform output -raw ec2_public_ip)
+        EC2_IP=$(terraform output -json | jq -r '.ec2_public_ip.value')
         echo "Using EC2 IP: ${EC2_IP}"
         
         # Yeni EC2'nin başlamasını bekle
@@ -155,7 +155,7 @@ jobs:
         sleep 300  # 5 dakika bekle
         
         # Private key'i terraform'dan al
-        terraform output -raw private_key > private_key.pem
+        terraform output -json | jq -r '.private_key.value' > private_key.pem
         chmod 600 private_key.pem
         ls -la private_key.pem  # Private key'in izinlerini kontrol et
         
@@ -176,7 +176,7 @@ jobs:
           if [ $i -eq 5 ]; then
             echo "Failed to establish SSH connection after 5 attempts"
             # Instance durumunu kontrol et
-            aws ec2 describe-instances --instance-ids $(terraform output -raw instance_id) \
+            aws ec2 describe-instances --instance-ids $(terraform output -json | jq -r '.instance_id.value') \
                                      --query 'Reservations[].Instances[].State.Name' \
                                      --output text
             exit 1
