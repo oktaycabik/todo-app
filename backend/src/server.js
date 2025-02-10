@@ -3,6 +3,11 @@ const cors = require('cors');
 const AWS = require('aws-sdk');
 const app = express();
 
+// AWS SDK yapılandırması
+AWS.config.update({
+  region: process.env.AWS_REGION || 'eu-central-1'
+});
+
 // AWS DynamoDB yapılandırması
 const dynamoDB = new AWS.DynamoDB.DocumentClient({
   region: process.env.AWS_REGION || 'eu-central-1'
