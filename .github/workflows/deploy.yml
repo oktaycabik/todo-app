@@ -19,78 +19,6 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-central-1
 
-    - name: Create S3 Bucket
-      run: |
-        if ! aws s3api head-bucket --bucket todo-app-tf-state-oktay 2>/dev/null; then
-          aws s3api create-bucket \
-            --bucket todo-app-tf-state-oktay \
-            --region eu-central-1 \
-            --create-bucket-configuration LocationConstraint=eu-central-1
-        else
-          echo "S3 bucket already exists, skipping creation..."
-        fi
-
-    - name: Create DynamoDB Table
-      run: |
-        # Tablo zaten varsa oluşturma
-        if ! aws dynamodb describe-table --table-name terraform-lock --region eu-central-1 >/dev/null 2>&1; then
-          aws dynamodb create-table \
-            --table-name terraform-lock \
-            --attribute-definitions AttributeName=LockID,AttributeType=S \
-            --key-schema AttributeName=LockID,KeyType=HASH \
-            --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 \
-            --region eu-central-1
-        else
-          echo "DynamoDB table already exists, skipping creation..."
-        fi
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform-workspace: main
-
-    - name: Terraform Init & Apply
-      if: ${{ !env.ACT }}
-      run: |
-        cd infrastructure/terraform
-        
-        # Terraform başlat
-        terraform init -reconfigure -input=false
-        
-        # Terraform state'i yenile
-        terraform refresh \
-          -lock=false \
-          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
-        
-        # Terraform uygula
-        terraform apply -auto-approve \
-          -lock=false \
-          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
-          -var="my_public_ip=0.0.0.0/0" \
-          -var="aws_region=eu-central-1" \
-          -var="app_name=todo-app" \
-          -var="environment=production"
-        
-        # Private key'i terraform'dan al ve kaydet
-        terraform show -json | jq -r '.values.outputs.private_key.value' > private_key.pem
-        chmod 600 private_key.pem
-        
-        # EC2 IP'sini temiz bir şekilde al
-        # Terraform output'u dosyaya yaz
-        terraform output -json > terraform_output.json
-        # EC2 IP'sini dosyadan oku
-        EC2_IP=$(jq -r '.ec2_public_ip.value' terraform_output.json)
-        if [ -z "$EC2_IP" ]; then
-          echo "Error: Could not get EC2 IP"
-          exit 1
-        fi
-        # Environment variable'ı ayarla
-        {
-          echo "EC2_IP=$EC2_IP"
-          echo "EC2_IP_SET=true"
-        } >> $GITHUB_ENV
-        echo "Set EC2_IP to: $EC2_IP"
-
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
@@ -101,146 +29,35 @@ jobs:
           backend/package-lock.json
 
     - name: Configure Frontend
-      if: ${{ !env.ACT }}
       run: |
-        if [ ! -f frontend/.env ]; then
-          cd infrastructure/terraform
-          
-          # Terraform init
-          terraform init -reconfigure -input=false
-          terraform refresh \
-            -lock=false \
-            -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
-          
-          # IP'yi al ve doğrula
-          terraform output -json > terraform_output.json
-          EC2_IP=$(jq -r '.ec2_public_ip.value' terraform_output.json)
-          if [ -z "$EC2_IP" ]; then
-            echo "Error: Could not get EC2 IP"
-            exit 1
-          fi
-          echo "Using EC2 IP: $EC2_IP"
-          
-          echo "REACT_APP_API_URL=http://${EC2_IP}:3001" > ../../frontend/.env
-          echo "Created .env file with API URL: http://${EC2_IP}:3001"
-          cd ../..
-        else
-          echo "Frontend already configured, skipping..."
-        fi
+        echo "REACT_APP_API_URL=http://${{ secrets.EC2_IP }}:3001" > frontend/.env
 
     - name: Build Frontend
-      if: ${{ !env.ACT }}
       run: |
-        if [ ! -d frontend/build ]; then
-          cd frontend
-          # Typescript versiyonunu güncelle ve bağımlılıkları yükle
-          npm install typescript@4.9.5 --save-dev
-          npm install
-          npm run build
-        else
-          echo "Frontend already built, skipping..."
-        fi
+        cd frontend
+        npm install
+        npm run build
 
     - name: Deploy Frontend
-      if: ${{ !env.ACT }}
       run: |
-        if ! aws s3 ls s3://todo-app-frontend-bucket-oktay/index.html 2>/dev/null; then
-          aws s3 sync frontend/build/ s3://todo-app-frontend-bucket-oktay --delete
-        else
-          echo "Frontend already deployed, skipping..."
-        fi
+        aws s3 sync frontend/build/ s3://${{ secrets.S3_BUCKET }} --delete
 
     - name: Deploy Backend
-      if: ${{ !env.ACT }}
       run: |
-        cd infrastructure/terraform
-        
-        # Terraform init ve refresh
-        terraform init -reconfigure -input=false
-        terraform refresh \
-          -lock=false \
-          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}"
-        
-        # Terraform apply
-        terraform apply -auto-approve \
-          -lock=false \
-          -var="iam_user_name=${{ secrets.IAM_USER_NAME }}" \
-          -var="my_public_ip=0.0.0.0/0" \
-          -var="aws_region=eu-central-1" \
-          -var="app_name=todo-app" \
-          -var="environment=production"
-        
-        # EC2 IP'sini al ve doğrula
-        EC2_IP=$(jq -r '.ec2_public_ip.value' terraform_output.json)
-        if [ -z "$EC2_IP" ]; then
-          echo "Error: Could not get EC2 IP"
-          exit 1
-        fi
-        echo "Using EC2 IP: ${EC2_IP}"
-        
-        # Instance ID'yi al ve doğrula
-        terraform output -json > terraform_output.json
-        INSTANCE_ID=$(jq -r '.instance_id.value' terraform_output.json)
-        if [ -z "$INSTANCE_ID" ]; then
-          echo "Error: Could not get Instance ID"
-          exit 1
-        fi
-        
-        # Yeni EC2'nin başlamasını bekle
-        echo "Waiting for EC2 to restart..."
-        sleep 300  # 5 dakika bekle
-        
-        # Private key'i al ve doğrula
-        jq -r '.private_key.value' terraform_output.json > private_key.pem
-        if [ ! -s private_key.pem ]; then
-          echo "Error: Could not get private key"
-          exit 1
-        fi
+        # SSH key'i oluştur
+        echo "${{ secrets.EC2_SSH_KEY }}" > private_key.pem
         chmod 600 private_key.pem
-        ls -la private_key.pem
         
-        # SSH bağlantısını test et (daha uzun timeout ve retry)
-        for i in {1..5}; do
-          echo "Attempting SSH connection (attempt $i)..."
-          echo "Connecting to EC2 IP: ${EC2_IP}"
-          # SSH debug modunu aktifleştir
-          if ssh -i private_key.pem -o StrictHostKeyChecking=no \
-                                  -o ConnectTimeout=60 \
-                                  -o ServerAliveInterval=60 \
-                                  -o ServerAliveCountMax=3 \
-                                  -v \
-                                  -o BatchMode=yes \
-                                  ec2-user@${EC2_IP} "echo 'SSH connection successful'"; then
-            break
-          fi
-          if [ $i -eq 5 ]; then
-            echo "Failed to establish SSH connection after 5 attempts"
-            aws ec2 describe-instances --instance-ids $(terraform output -raw instance_id) \
-                                     --query 'Reservations[].Instances[].State.Name' \
-                                     --output text
-            exit 1
-          fi
-          echo "Waiting before next attempt..."
-          sleep 60
-        done
+        # Backend dosyalarını kopyala
+        scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${{ secrets.EC2_IP }}:/home/ec2-user/app/
         
-        # Backend deployment
-        echo "Deploying backend files..."
-        # EC2 IP'sini kontrol et
-        if [ "${EC2_IP_SET}" != "true" ]; then
-          echo "Error: EC2_IP is not set"
-          exit 1
-        fi
-        echo "Using EC2 IP: $EC2_IP"
-        
-        if ! ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "test -d /home/ec2-user/app/node_modules"; then
-          scp -i private_key.pem -o StrictHostKeyChecking=no -r backend/* ec2-user@${EC2_IP}:/home/ec2-user/app/
-          echo "Installing dependencies..."
-          ssh -i private_key.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@${EC2_IP} "cd /home/ec2-user/app && npm ci && pm2 delete all || true && pm2 start src/server.js --name todo-backend"
-        else
-          echo "Backend already deployed, skipping..."
-        fi
+        # Backend'i yeniden başlat
+        ssh -i private_key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_IP }} "
+          cd /home/ec2-user/app && 
+          npm ci && 
+          pm2 delete all || true && 
+          pm2 start src/server.js --name todo-backend
+        "
         
         # Temizlik
-        rm -f private_key.pem terraform_output.json
-        cd ../.. 
+        rm -f private_key.pem 
